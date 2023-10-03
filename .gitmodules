@@ -1,0 +1,3 @@
+[submodule "InterPlaneInterSatelliteConnectivity"]
+	path = InterPlaneInterSatelliteConnectivity
+	url = git@github.com:leyvamay/InterPlaneInterSatelliteConnectivity.git

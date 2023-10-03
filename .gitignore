@@ -19,3 +19,17 @@
 
 # Go workspace file
 go.work
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+
+# Overrides
+*.parquet
+*.vscode/
+
