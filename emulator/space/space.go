@@ -78,7 +78,7 @@ func newVector(x, y, z float64) Vector3 {
 	return Vector3{X: x, Y: y, Z: z}
 }
 
-const C = 299792.458
+const C = 299792.458 // km/s
 
 func Latency(distance float64) float64 {
 	return distance / C

@@ -80,10 +80,10 @@ func main() {
 	endTime := time.Date(2022, 9, 21, 22, 00, 00, 00, time.UTC)
 	timeStep := 15 * time.Second
 	duration := endTime.Sub(startTime)
-
+	var satellite_positions_path string = "./constellation.parquet"
 	if strings.ToLower(os.Getenv("ISRAEL")) == "true" {
 		log.Info().Msg("using simulated constellation")
-		satdata = database.LoadSatellitePositions("/home/rasmus/github/P7/Project/constellation.parquet")
+		satdata = database.LoadSatellitePositions(satellite_positions_path)
 		graphSize += len(satdata)
 		for _, orbitialData := range satdata {
 			SatelliteIds = append(SatelliteIds, orbitialData.SatelliteId)
@@ -136,7 +136,7 @@ func main() {
 			close(work_channel)
 			return
 		} else if location == "parquet" {
-			pw, stop := database.WriteLogs("satdata.parquet", new(database.FlatSatelliteLineData))
+			pw, stop := database.WriteLogs("satdata_complete", new(database.FlatSatelliteLineData))
 			defer stop()
 
 			for _, satellitedata := range satdata {
@@ -222,7 +222,7 @@ func main() {
 	gn := graph.InstantiateGraph(graphSize) // T - nu
 	// gt := graph.InstantiateGraph(graphSize) // T - nu
 	// index := 47
-	var APRange float64 = 8.0
+	var APRange float64 = 8.0 // km
 	graph.SetupGraphAccessPointEdges(gn, graphSize, GroundStations, APRange)
 	log.Info().Float64("accessPointRange", APRange).Msg("graphAccessPointEdges")
 	var activelinks []string
@@ -332,7 +332,7 @@ func main() {
 				for pathindex := 0; pathindex < len(path)-1; pathindex++ {
 					graphid_1 := path[pathindex]
 					graphid_2 := path[pathindex+1]
-					if graphid_1 >= len(satdata) || graphid_2 >= len(satdata) {
+					if graphid_1 >= len(satdata) || graphid_2 >= len(satdata) { // Skip ground stations
 						continue
 					}
 					satFrom := satdata[graphid_1]
@@ -345,15 +345,27 @@ func main() {
 							latency_ms := space.Latency(distance) * 1000
 							// Performs a nearly atomic remove/add on an existing node id. If the node does not exist yet it is created.
 							cost := int(math.Ceil(latency_ms))
-							command_forward := qdiscCommand(satTo.SatelliteId, cost)
+							command_forward := qdiscCommand("Sat", satTo.SatelliteId, cost)
 							container_name_forward := fmt.Sprintf("Sat%d", satFrom.SatelliteId)
 							podman.RunCommand(container_name_forward, command_forward)
-							command_reverse := qdiscCommand(satFrom.SatelliteId, cost)
+							command_reverse := qdiscCommand("Sat", satFrom.SatelliteId, cost)
 							container_name_reverse := fmt.Sprintf("Sat%d", satTo.SatelliteId)
 							podman.RunCommand(container_name_reverse, command_reverse)
 						}(simulationTime, satFrom, satTo)
 					}
 				}
+				var gs_name string
+				var gs_satellite space.OrbitalData
+
+				gs_name = GroundStations[path[1]-len(SatelliteIds)].Title
+				gs_satellite = satdata[path[2]]
+				podman.RunCommand("GS"+GroundStations[path[1]-len(SatelliteIds)].Title, qdiscCommand("Sat", gs_satellite.SatelliteId, 0))
+				podman.RunCommand(fmt.Sprintf("Sat%d", gs_satellite.SatelliteId), qdiscCommandGS("GS", gs_name))
+
+				gs_name = GroundStations[path[len(path)-(2-1)]-len(SatelliteIds)].Title
+				gs_satellite = satdata[path[3-1]]
+				podman.RunCommand("GS"+GroundStations[path[len(path)-(2-1)]-len(SatelliteIds)].Title, qdiscCommand("Sat", gs_satellite.SatelliteId, 0))
+				podman.RunCommand(fmt.Sprintf("Sat%d", gs_satellite.SatelliteId), qdiscCommandGS("GS", gs_name))
 				wg.Wait()
 
 				// Setting up the routing table for all containers
@@ -411,15 +423,27 @@ func main() {
 					latency_ms := space.Latency(distance) * 1000
 					// Performs a nearly atomic remove/add on an existing node id. If the node does not exist yet it is created.
 					cost := int(math.Ceil(latency_ms))
-					command_forward := qdiscCommand(satTo.SatelliteId, cost)
+					command_forward := qdiscCommand("Sat", satTo.SatelliteId, cost)
 					container_name_forward := fmt.Sprintf("Sat%d", satFrom.SatelliteId)
 					podman.RunCommand(container_name_forward, command_forward)
-					command_reverse := qdiscCommand(satFrom.SatelliteId, cost)
+					command_reverse := qdiscCommand("Sat", satFrom.SatelliteId, cost)
 					container_name_reverse := fmt.Sprintf("Sat%d", satTo.SatelliteId)
 					podman.RunCommand(container_name_reverse, command_reverse)
 				}(simulationTime, satFrom, satTo)
 			}
 		}
+		var gs_name string
+		var gs_satellite space.OrbitalData
+
+		gs_name = GroundStations[path[1]-len(SatelliteIds)].Title
+		gs_satellite = satdata[path[2]]
+		podman.RunCommand("GS"+GroundStations[path[1]-len(SatelliteIds)].Title, qdiscCommand("Sat", gs_satellite.SatelliteId, 0))
+		podman.RunCommand(fmt.Sprintf("Sat%d", gs_satellite.SatelliteId), qdiscCommandGS("GS", gs_name))
+
+		gs_name = GroundStations[path[len(path)-(2-1)]-len(SatelliteIds)].Title
+		gs_satellite = satdata[path[3-1]]
+		podman.RunCommand("GS"+GroundStations[path[len(path)-(2-1)]-len(SatelliteIds)].Title, qdiscCommand("Sat", gs_satellite.SatelliteId, 0))
+		podman.RunCommand(fmt.Sprintf("Sat%d", gs_satellite.SatelliteId), qdiscCommandGS("GS", gs_name))
 		wg.Wait()
 
 		//Wait until next iteration based on time.
@@ -434,8 +458,12 @@ func main() {
 }
 
 // Installs or replaces a qdisc atomically with the interface equal to satellite id and delay in milliseconds
-func qdiscCommand(satelliteId int, delay int) string {
-	return fmt.Sprintf("tc qdisc replace dev Sat%d root netem delay %dms rate 100mbit limit 500", satelliteId, delay)
+func qdiscCommand(net_if string, satelliteId int, delay int) string {
+	return fmt.Sprintf("tc qdisc replace dev %s%d root netem delay %dms rate 100mbit limit 500", net_if, satelliteId, delay)
+}
+
+func qdiscCommandGS(net_if string, gs_title string) string {
+	return fmt.Sprintf("tc qdisc replace dev %s%s root netem delay %dms rate 100mbit limit 500", net_if, gs_title, 0)
 }
 
 type connection struct {

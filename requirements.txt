@@ -1,2 +1,7 @@
+python=3.10
+pandas
+numpy
+jmespath
+basemap
 parse
 scienceplots

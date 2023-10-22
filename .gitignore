@@ -33,3 +33,5 @@ __pycache__/
 *.parquet
 *.vscode/
 
+.python-version
+emulator/main

@@ -61,7 +61,6 @@ func SetupGraphSatelliteEdges(g *graph.Mutable, index int, satdata []space.Orbit
 				cost := space.Latency(distance) * 1000000
 				err = AddBothCost(g, len(satdata), node1, node2, int64(cost))
 
-				//TODO: add network to docker to simulate link
 			} else {
 				err = AddBothCost(g, len(satdata), node1, node2, -1)
 			}
@@ -90,6 +89,7 @@ func SetupGraphGroundStationEdges(g *graph.Mutable, index int, simulationTime ti
 				continue
 			}
 			cost := space.Latency(float64(distance)) * 1000000
+			log.Debug().Int("gsid", gsid).Int("satid", sat.SatelliteId).Float64("distance", distance).Msg("new GS->Satellite")
 			err := AddBothCost(g, len(gsdata)+len(satdata), len(satdata)+gsid, node1, int64(cost))
 			if err != nil {
 				log.Error().Err(err).Str("gsname", gs.Title).Msg("failed to add cost path to graph")

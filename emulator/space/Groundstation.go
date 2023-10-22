@@ -35,7 +35,7 @@ type GroundStation struct {
 }
 
 // Calculate distance from point A(Groundstation) to point B(satellite) on a sphere using Latitude and Longitude.
-func CalculateDistance(latlong1 LatLong, latlong2 LatLong, distance float64) (d float64, inCircle bool) {
+func CalculateDistance(latlong1 LatLong, latlong2 LatLong, max_distance float64) (d float64, inCircle bool) {
 	R := 6378.0
 	lat1_r := latlong1.Latitude * math.Pi / 180
 	lat2_r := latlong2.Latitude * math.Pi / 180
@@ -47,7 +47,7 @@ func CalculateDistance(latlong1 LatLong, latlong2 LatLong, distance float64) (d 
 
 	c := 2 * math.Asin(math.Sqrt(math.Sin(lat_d/2)*math.Sin(lat_d/2)+math.Cos(lat1_r)*math.Cos(lat2_r)*math.Sin(long_d/2)*math.Sin(long_d/2)))
 	d = R * c
-	if d > distance {
+	if d > max_distance {
 		inCircle = false
 	} else {
 		inCircle = true
@@ -58,13 +58,14 @@ func CalculateDistance(latlong1 LatLong, latlong2 LatLong, distance float64) (d 
 
 // const minimumElevation = 25
 const minimumElevation = 25
+const footprint = 1500
 
 func SatelliteVisible(gs *GroundStation, satellite_ll LatLong) (visible bool, distance float64) {
 	// jday := gosat.JDay(time.Year(), int(time.Month()), time.Day(), time.Hour(), time.Minute(), time.Second())
 
 	// lookangle := gosat.ECIToLookAngles(satellitePosition.AsgosatVector(), gs.Latlong.asGosatLatLone(), 10, jday)
 	// gs.Latlong
-	d, incircle := CalculateDistance(gs.Latlong, satellite_ll, 1500)
+	d, incircle := CalculateDistance(gs.Latlong, satellite_ll, footprint)
 	// elevation = lookangle.El * (180 / math.Pi)
 	// https://github.com/joshuaferrara/go-satellite/issues/13
 	visible = incircle
