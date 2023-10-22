@@ -1,8 +1,11 @@
 
 emulator: FORCE
-	echo 'Starting Emulator'
+	echo "Building emulator"
 	go build -C emulator -v -o emulator cmd/emulator/main.go
-	cd emulator; sudo XDG_RUNTIME_DIR="/run" ./emulator
+	echo "Generating satellite positions"
+	python satellite_positions.py
+	echo 'Starting Emulator'
+	cd emulator; sudo ISRAEL=TRUE ./emulator
 trace:
 	docker exec GSElAlamo iperf3 -s 
 	docker exec GSElAlamo iperf3 -c GSElAlamo

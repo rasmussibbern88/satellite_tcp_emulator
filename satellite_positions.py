@@ -10,6 +10,7 @@ N, h, inclination, is_walker_star = Constellation.commercial_constellation_param
 
 constellation = Constellation.Constellation(N, h, inclination, is_walker_star)
 # constellation.rotate(delta_t)  # coordinates are populated by first rotation
+print(constellation)
 
 M = 1000  # time steps
 NM = N * M
@@ -37,6 +38,5 @@ dataframe = pd.DataFrame(
     },
 )
 
-dataframe.to_parquet("satellite_positions.parquet", index=False)
-
-dataframe.read_parquet("satellite_positions.parquet")
+dataframe.to_parquet("emulator/constellation.parquet", index=False)
+load = pd.read_parquet("emulator/constellation.parquet")
